@@ -7,6 +7,7 @@
  * @flow strict
  */
 
+import type {SerializedLexicalNode} from '../flow/Lexical';
 import type {
   EditorUpdateOptions,
   LexicalCommand,
@@ -285,13 +286,25 @@ export function parseEditorState(
   return editorState;
 }
 
-type InternalSerializedNode = {
+export type InternalSerializedNode = {
   children?: Array<InternalSerializedNode>,
   type: string,
   version: number,
+  ...
 };
 
-function parseSerializedNode<SerializedNode: InternalSerializedNode>(
+export function $parseSerializedNode(
+  serializedNode: SerializedLexicalNode,
+): LexicalNode {
+  // $FlowFixMe: intentional cast to our internal type
+  const internalSerializedNode: InternalSerializedNode = serializedNode;
+  return $parseSerializedNodeImpl(
+    internalSerializedNode,
+    getActiveEditor()._nodes,
+  );
+}
+
+function $parseSerializedNodeImpl<SerializedNode: InternalSerializedNode>(
   serializedNode: SerializedNode,
   registeredNodes: RegisteredNodes,
 ): LexicalNode {
@@ -313,7 +326,7 @@ function parseSerializedNode<SerializedNode: InternalSerializedNode>(
   if ($isElementNode(node) && Array.isArray(children)) {
     for (let i = 0; i < children.length; i++) {
       const serializedJSONChildNode = children[i];
-      const childNode = parseSerializedNode(
+      const childNode = $parseSerializedNodeImpl(
         serializedJSONChildNode,
         registeredNodes,
       );
@@ -339,7 +352,7 @@ export function unstable_parseEditorState(
     const registeredNodes = editor._nodes;
     // $FlowFixMe: intentional cast to our internal type
     const serializedNode: InternalSerializedNode = serializedEditorState.root;
-    parseSerializedNode(serializedNode, registeredNodes);
+    $parseSerializedNodeImpl(serializedNode, registeredNodes);
     if (updateFn) {
       updateFn();
     }
